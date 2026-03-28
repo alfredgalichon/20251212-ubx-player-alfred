@@ -5,6 +5,54 @@ from typing import Any, Dict
 
 import numpy as np
 
+def sample_data():
+    data =  [{
+        "_turnId": 1,
+        "player-id-A": {
+            "player-id-B": {"shoot": 2, "keep": 0, "outcome": True},
+            "player-id-C": {"shoot": 0, "keep": 1, "outcome": False}
+        },
+        "player-id-B": {
+            "player-id-A": {"shoot": 1, "keep": 2, "outcome": False},
+            "player-id-C": {"shoot": 2, "keep": 0, "outcome": True}
+        },
+        "player-id-C": {
+            "player-id-A": {"shoot": 0, "keep": 1, "outcome": True},
+            "player-id-B": {"shoot": 1, "keep": 2, "outcome": False}
+        }
+    },
+    {
+        "_turnId": 2,
+        "player-id-A": {
+            "player-id-B": {"shoot": 1, "keep": 1, "outcome": False},
+            "player-id-C": {"shoot": 3, "keep": 0, "outcome": True}
+        },
+        "player-id-B": {
+            "player-id-A": {"shoot": 0, "keep": 2, "outcome": True},
+            "player-id-C": {"shoot": 1, "keep": 1, "outcome": False}
+        },
+        "player-id-C": {
+            "player-id-A": {"shoot": 2, "keep": 1, "outcome": False},
+            "player-id-B": {"shoot": 0, "keep": 3, "outcome": True}
+        }
+    },
+    {
+        "_turnId": 3,
+        "player-id-A": {
+            "player-id-B": {"shoot": 0, "keep": 2, "outcome": False},
+            "player-id-C": {"shoot": 2, "keep": 1, "outcome": True}
+        },
+        "player-id-B": {
+            "player-id-A": {"shoot": 3, "keep": 0, "outcome": True},
+            "player-id-C": {"shoot": 0, "keep": 2, "outcome": False}
+        },
+        "player-id-C": {
+            "player-id-A": {"shoot": 1, "keep": 1, "outcome": False},
+            "player-id-B": {"shoot": 2, "keep": 0, "outcome": True}
+        }
+    }]
+    
+    return data
 
 def build_goal_matrix(observations):
     """
@@ -79,6 +127,8 @@ def strategy(state: Dict[str, Any]) -> Dict[str, Dict[str, int]]:
     my_id = state.get("myPlayerId")
     opponents = state.get("opponentsIds") or []
 
+
+
     if not my_id or not opponents:
         return {"shoot": {}, "keep": {}}
 
@@ -89,6 +139,14 @@ def strategy(state: Dict[str, Any]) -> Dict[str, Dict[str, int]]:
     
     shoot = np.random.randint(0, 3, len(opponents)).tolist()
     keep = np.random.randint(0, 3, len(opponents)).tolist()
+    for opp_id in opponents:
+        # data where I am the shooter
+        obs_shooter = [ (turn[my_id][opp_id]['shoot'], turn[my_id][opp_id]['keep'],1*turn[my_id][opp_id]['outcome']) for turn in thedata]
+        # HERE CALL build_goal_matrix
+        # data where I am the keeper
+        obs_keeper = [ (turn[opp_id][my_id]['shoot'], turn[opp_id][my_id]['keep'],1*turn[opp_id][my_id]['outcome']) for turn in thedata]
+        # HERE CALL build_goal_matrix
+
 
     return {
         "shoot": {pid: int(direction) for pid, direction in zip(opponents, shoot)},
