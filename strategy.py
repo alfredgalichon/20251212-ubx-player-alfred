@@ -4,6 +4,7 @@
 from typing import Any, Dict
 
 import numpy as np
+from scipy.optimize import linprog
 
 def sample_data():
     data =  [{
@@ -99,6 +100,31 @@ def build_goal_matrix(observations):
     return phi_i_j, count_i_j
     
     
+def compute_strat(phi_i_j,shooter=True):
+    I, J = phi_i_j.shape
+    # Variables: x = [u, p_1, ..., p_I]  (length 1 + I)
+    # Maximize u  <=>  minimize -u
+    c = np.zeros(1 + I)
+    c[0] = -1.0
+    # Inequality constraints: u - sum_i phi_i_j p_i <= 0, for each j
+    A_ub = np.hstack([np.ones((J, 1)), -phi_i_j.T])   # shape (J, 1+I)
+    b_ub = np.zeros(J)
+    # Equality constraint: sum_i p_i = 1
+    A_eq = np.zeros((1, 1 + I))
+    A_eq[0, 1:] = 1.0
+    b_eq = np.array([1.0])
+    # Bounds: u unconstrained, p_i >= 0
+    bounds = [(None, None)] + [(0, None)] * I
+    res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
+              bounds=bounds, method='highs')
+    
+    pstar_i = res.x[1:]
+    qstar_j = lambda_j = -res.ineqlin.marginals 
+    if shooter:
+        return pstar_i
+    else:
+        return qstar_j
+
 
 def strategy(state: Dict[str, Any]) -> Dict[str, Dict[str, int]]:
     """
@@ -137,15 +163,24 @@ def strategy(state: Dict[str, Any]) -> Dict[str, Dict[str, int]]:
     # You can analyze state.get("state", []) to see previous turns
     # and make decisions based on opponent behavior
     
-    shoot = np.random.randint(0, 3, len(opponents)).tolist()
-    keep = np.random.randint(0, 3, len(opponents)).tolist()
+
+    shoot = []
+    keep = []
     for opp_id in opponents:
         # data where I am the shooter
         obs_shooter = [ (turn[my_id][opp_id]['shoot'], turn[my_id][opp_id]['keep'],1*turn[my_id][opp_id]['outcome']) for turn in thedata]
-        # HERE CALL build_goal_matrix
+        phi_i_j, _ = build_goal_matrix(obs_shooter)
+        pstar_i = compute_strat(phi_i_j,shooter=True)
+        i = np.random.choice(3, p=pstar_i)
+        shoot.append(i)
+
         # data where I am the keeper
         obs_keeper = [ (turn[opp_id][my_id]['shoot'], turn[opp_id][my_id]['keep'],1*turn[opp_id][my_id]['outcome']) for turn in thedata]
-        # HERE CALL build_goal_matrix
+        phi_i_j, _ = build_goal_matrix(obs_keeper)
+        qstar_j = compute_strat(phi_i_j,shooter=False)
+        j = np.random.choice(3, p=qstar_j)
+        keep.append(j)
+
 
 
     return {
